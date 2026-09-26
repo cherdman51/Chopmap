@@ -80,6 +80,8 @@ svg{display:block;width:100%;height:100%}
 .sortbar{display:flex;gap:.35rem;align-items:center;margin:.2rem 0 .5rem;flex-wrap:wrap}
 .sortbar .lbl{font-family:'IBM Plex Mono',monospace;font-size:.6rem;letter-spacing:.08em;color:#948A70;margin-right:.2rem}
 .sortbtn{background:none;border:1px solid #C9BFA6;color:#6B6353;font-family:'IBM Plex Mono',monospace;font-size:.62rem;letter-spacing:.06em;padding:.25rem .55rem;border-radius:2px;cursor:pointer}
+.dirbtn{font-size:.8rem;padding:.12rem .5rem;line-height:1.2}
+.dirlbl{font-family:'IBM Plex Mono',monospace;font-size:.58rem;letter-spacing:.05em;color:#948A70;margin-left:.2rem}
 .sortbtn.active{background:var(--cinnabar);border-color:var(--cinnabar);color:var(--paper)}
 .blurb{font-size:.88rem;line-height:1.5;color:#4A443A;margin:.2rem 0 .9rem}
 .closer{align-self:flex-end;margin:.6rem 1rem 0 0;background:none;border:1px solid var(--line);color:var(--dim);font-family:'IBM Plex Mono',monospace;font-size:.68rem;letter-spacing:.05em;padding:.3rem .7rem;border-radius:2px;cursor:pointer}
@@ -193,7 +195,7 @@ dd{margin:0}
         <label>Ruler</label><select id="f-mon"><option value="">Any</option></select>
         <label>Composition</label><select id="f-comp"><option value="">Any</option></select>
         <label>Mint</label><select id="f-mint"><option value="">Any</option></select>
-        <label>Sort</label><select id="f-sort"><option value="date">Date</option><option value="alpha">A–Z</option><option value="face">Face value</option><option value="auth">Authority</option></select>
+        <label>Sort</label><select id="f-sort"><option value="date:asc">Date (Oldest to Newest)</option><option value="date:desc">Date (Newest to Oldest)</option><option value="alpha:asc">A–Z</option><option value="alpha:desc">Z–A</option><option value="face:asc">Face Value (Lowest to Highest)</option><option value="face:desc">Face Value (Highest to Lowest)</option><option value="auth:asc">Authority</option></select>
         <button class="clr" id="f-clear">CLEAR FILTERS</button>
       </div>
       <div id="results"></div>
@@ -330,23 +332,29 @@ function openCountry(name){
   content.querySelectorAll('.row').forEach(b=>b.onclick=()=>openEntity(b.dataset.e));
   panel.classList.add('open'); content.parentElement.scrollTop=0;
 }
-function sortTypes(list){
-  const l=list.slice();
-  if(sortMode==='alpha') l.sort((a,b)=>a.nm.localeCompare(b.nm));
-  else if(sortMode==='face') l.sort((a,b)=>(a.cur||'').localeCompare(b.cur||'')||(a.fv??0)-(b.fv??0)||a.y0-b.y0);
-  else l.sort((a,b)=>a.y0-b.y0||a.nm.localeCompare(b.nm));
-  return l;
+function cmpTypes(mode,dir){
+  const d=dir==='desc'?-1:1, NOY=a=>a.y0===9999;
+  if(mode==='alpha') return (a,b)=>d*a.nm.localeCompare(b.nm);
+  if(mode==='face') return (a,b)=>(a.cur||'').localeCompare(b.cur||'')||d*((a.fv??0)-(b.fv??0))||a.y0-b.y0;
+  if(mode==='auth') return (a,b)=>ENTITIES[a.aid].name.localeCompare(ENTITIES[b.aid].name)||a.y0-b.y0;
+  return (a,b)=>(NOY(a)-NOY(b))||d*(a.y0-b.y0)||d*(a.y1-b.y1)||a.nm.localeCompare(b.nm);
 }
+let sortDir='asc';
+function dirTitle(){ const a=sortDir==='asc';
+  return sortMode==='date'?(a?'Oldest to newest':'Newest to oldest'):sortMode==='face'?(a?'Lowest to highest':'Highest to lowest'):(a?'A to Z':'Z to A'); }
+function sortTypes(list){ return list.slice().sort(cmpTypes(sortMode,sortDir)); }
 function openEntity(id){
   nav.entity=id; const e=ENTITIES[id], disp=dispName(nav.country);
   crumbs.innerHTML=crumb([{t:'MAP'},{t:disp.toUpperCase(),id:'bk-c'},{t:e.name.toUpperCase()}]);
   const list=sortTypes(e.types);
   content.innerHTML='<h2>'+esc(e.name)+'</h2><div class="sub">'+esc(e.yrs)+' · '+e.types.length+(e.types.length===1?' type':' types')+'</div>'+
-    '<div class="sortbar"><span class="lbl">SORT</span>'+[['date','DATE'],['face','FACE VALUE'],['alpha','A–Z']].map(([k,l])=>'<button class="sortbtn'+(sortMode===k?' active':'')+'" data-s="'+k+'">'+l+'</button>').join('')+'</div>'+
+    '<div class="sortbar"><span class="lbl">SORT</span>'+[['date','DATE'],['face','FACE VALUE'],['alpha','NAME']].map(([k,l])=>'<button class="sortbtn'+(sortMode===k?' active':'')+'" data-s="'+k+'">'+l+'</button>').join('')+
+    '<button class="sortbtn dirbtn" id="sortdir" title="'+dirTitle()+'" aria-label="'+dirTitle()+'">'+(sortDir==='asc'?'↑':'↓')+'</button><span class="dirlbl">'+dirTitle()+'</span></div>'+
     list.map(t=>'<button class="row" data-t="'+t.id+'">'+thumbHTML(t.thumb?'images/'+encodeURIComponent(t.thumb.f):null)+'<span class="tx"><span class="nm">'+esc(t.nm)+'</span>'+
       '<span class="yrs">'+esc(t.yrs)+'</span>'+(t.mint?' <span class="count">· '+esc(t.mint)+'</span>':'')+'</span><span class="arrow">→</span></button>').join('');
   document.getElementById('bk-c').onclick=()=>openCountry(nav.country);
-  content.querySelectorAll('.sortbtn').forEach(b=>b.onclick=()=>{sortMode=b.dataset.s;openEntity(id);});
+  content.querySelectorAll('.sortbtn[data-s]').forEach(b=>b.onclick=()=>{sortMode=b.dataset.s;openEntity(id);});
+  document.getElementById('sortdir').onclick=()=>{sortDir=sortDir==='asc'?'desc':'asc';openEntity(id);};
   content.querySelectorAll('.row[data-t]').forEach(b=>b.onclick=()=>openType(b.dataset.t));
   content.parentElement.scrollTop=0;
 }
@@ -407,10 +415,7 @@ function runCatalog(){
     if(mint&&!(t.mint||'').split(/[;,]/).map(x=>x.trim()).includes(mint)) return false;
     return toks.every(tok=>{ if(/^\d{4}$/.test(tok)){ const y=+tok; return (t.y0<=y&&y<=t.y1)||t.hay.includes(tok); } return t.hay.includes(tok); });
   });
-  if(sort==='alpha') list.sort((a,b)=>a.nm.localeCompare(b.nm));
-  else if(sort==='face') list.sort((a,b)=>(a.cur||'').localeCompare(b.cur||'')||(a.fv??0)-(b.fv??0)||a.y0-b.y0);
-  else if(sort==='auth') list.sort((a,b)=>ENTITIES[a.aid].name.localeCompare(ENTITIES[b.aid].name)||a.y0-b.y0);
-  else list.sort((a,b)=>a.y0-b.y0||a.nm.localeCompare(b.nm));
+  { const [m,d]=sort.split(':'); list.sort(cmpTypes(m,d)); }
   results.innerHTML='<div class="rcount">'+list.length+' OF '+TYPES.length+' TYPES</div>'+list.map(t=>{const e=ENTITIES[t.aid];
     return '<button class="rc" data-t="'+t.id+'">'+thumbHTML(t.thumb?'images/'+encodeURIComponent(t.thumb.f):null)+'<span class="tx"><span class="nm">'+esc(t.nm)+'</span>'+
       '<span class="meta"><b>'+esc(e.name)+'</b> · '+esc(e.terrs.map(dispName).join(', '))+'</span>'+
@@ -420,7 +425,7 @@ function runCatalog(){
   results.scrollTop=0;
 }
 F.forEach(id=>$(id).addEventListener('input',()=>{ if(id==='f-cur') refreshFV(); runCatalog(); }));
-$('f-clear').onclick=()=>{ F.forEach(id=>{$(id).value=id==='f-sort'?'date':'';}); $('search').value=''; refreshFV(); runCatalog(); };
+$('f-clear').onclick=()=>{ F.forEach(id=>{$(id).value=id==='f-sort'?'date:asc':'';}); $('search').value=''; refreshFV(); runCatalog(); };
 $('filtertoggle').onclick=()=>$('filters').classList.toggle('show');
 function openCatalog(q){ if(q!==undefined){$('f-q').value=q;} runCatalog(); cat.classList.add('open'); $('nav-cat').classList.add('active'); $('nav-map').classList.remove('active'); }
 function closeCatalog(){ cat.classList.remove('open'); closeType(); $('nav-cat').classList.remove('active'); $('nav-map').classList.add('active'); }
