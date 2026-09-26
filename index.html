@@ -27,7 +27,7 @@ nav{display:flex;gap:.4rem;margin-left:auto;align-items:center}
 .legend span{display:inline-flex;align-items:center;gap:.4rem}
 .key{width:.65rem;height:.65rem;display:inline-block;border-radius:1px}
 .key.red{background:var(--cinnabar)} .key.grey{background:var(--silver);opacity:.55}
-.key.node{width:.8rem;height:.8rem;border-radius:50%;background:var(--paper);border:1px solid var(--cinnabar-hi)}
+.key.node{width:.8rem;height:.8rem;border-radius:50%;background:#8a8f8c}
 main{display:flex;flex:1;min-height:0;position:relative;overflow:hidden}
 #mapwrap{flex:1;min-width:0;position:relative;touch-action:none;cursor:grab}
 #mapwrap.drag{cursor:grabbing}
@@ -40,8 +40,10 @@ svg{display:block;width:100%;height:100%}
 .pt{fill:var(--cinnabar-hi);stroke:var(--gold);stroke-width:1;cursor:pointer;outline:none}
 .pt:hover,.pt:focus-visible{fill:#F0805F;stroke-width:1.6}
 .node{cursor:pointer;outline:none}
-.node .halo{fill:var(--paper);fill-opacity:.92;stroke:var(--cinnabar);stroke-width:.9}
-.node:hover .halo,.node:focus-visible .halo{stroke:var(--gold);stroke-width:1.4;fill-opacity:1}
+.node .halo{fill:#000;fill-opacity:0;stroke:none;pointer-events:all}
+.node:hover .halo,.node:focus-visible .halo{stroke:var(--gold);stroke-width:1.4}
+.node .halo.stamped{animation:ring .35s ease-out}
+@keyframes ring{0%{stroke:var(--cinnabar-hi);stroke-width:2.4}100%{stroke:var(--gold);stroke-width:1.4}}
 .node image{pointer-events:none}
 .leader{stroke:var(--paper);stroke-opacity:.55;stroke-width:.7;pointer-events:none}
 .leaderdot{fill:var(--paper);fill-opacity:.8;pointer-events:none}
