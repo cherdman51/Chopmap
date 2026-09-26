@@ -219,9 +219,10 @@ const isMobile = () => window.innerWidth <= 720;
 /* ---------- derived type index ---------- */
 const TYPES=[];
 const FRAC={'½':0.5,'¼':0.25,'¾':0.75};
-function singular(c){ const map={'Reales':'Real','Cents':'Cent','Dollars':'Dollar','Thalers':'Thaler','Shillings':'Shilling','Pesetas':'Peseta','Francs':'Franc','Soles':'Sol','Stuivers':'Stuiver','Centimos':'Centimo','Pesos':'Peso','Candareens':'Candareen'}; return map[c]||c; }
+function singular(c){ const map={'Reales':'Real','Cents':'Cent','Dollars':'Dollar','Thalers':'Thaler','Shillings':'Shilling','Pesetas':'Peseta','Francs':'Franc','Soles':'Sol','Stuivers':'Stuiver','Centimos':'Centimo','Pesos':'Peso','Candareens':'Candareen','Centavos':'Centavo','Centimes':'Centime','Kopecks':'Kopeck','Taels':'Tael','Sukus':'Suku','Pence':'Penny','Piastres':'Piastre'}; return map[c]||c; }
 function parseDenom(d){
   d=(d||'').trim(); if(!d) return {fv:null,cur:''};
+  d=d.replace(/^(one|un|une|uno)\s+/i,'1 ');
   let s=d.replace(/(\d)(½|¼|¾)/g,(m,a,b)=>String(+a+FRAC[b])).replace(/^(½|¼|¾)/,m=>String(FRAC[m]));
   const mace=s.match(/^(?:(\d+(?:\.\d+)?)\s*Mace)?\s*(?:(\d+(?:\.\d+)?)\s*Candareens?)?$/i);
   if(mace&&(mace[1]||mace[2])) return {fv:+(((+mace[1]||0)+(+mace[2]||0)/10).toFixed(3)),cur:'Mace'};
@@ -396,8 +397,22 @@ fillSelect('f-cur',uniq(TYPES.map(t=>t.cur)).sort());
 fillSelect('f-mon',uniq(TYPES.map(t=>t.ruler)).sort());
 fillSelect('f-comp',uniq(TYPES.map(t=>t.metal)).sort());
 fillSelect('f-mint',uniq(TYPES.flatMap(t=>(t.mint||'').split(/[;,]/).map(x=>x.trim()))).sort());
+// face value options = the denominations as written, grouped by currency and ordered by value
+const DKEY=d=>(d||'').trim().replace(/\s+/g,' ').toLowerCase();
+const DENOMS={}; // key -> {label, cur, fv, n}
+for (const t of TYPES){ if(!DKEY(t.denom)) continue; const k=(t.cur+'|'+t.fv).toLowerCase(); t.dkey=k;
+  const e=DENOMS[k]||(DENOMS[k]={labels:{},cur:t.cur,fv:t.fv}); e.labels[t.denom.trim()]=(e.labels[t.denom.trim()]||0)+1; }
+for (const e of Object.values(DENOMS)) e.label=Object.entries(e.labels).sort((a,b)=>(/^\d|^[½¼¾]/.test(b[0])-/^\d|^[½¼¾]/.test(a[0]))||b[1]-a[1])[0][0].replace(/^(one|un)\s+/i,'1 ');
 function refreshFV(){ const cur=$('f-cur').value; const s=$('f-fv'); const keep=s.value; s.innerHTML='<option value="">Any</option>';
-  uniq(TYPES.filter(t=>!cur||t.cur===cur).map(t=>t.fv)).sort((a,b)=>a-b).forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;s.appendChild(o);}); s.value=keep; }
+  const groups={};
+  for (const [k,e] of Object.entries(DENOMS)) if(!cur||e.cur===cur) (groups[e.cur]=groups[e.cur]||[]).push([k,e]);
+  for (const c of Object.keys(groups).sort()){
+    const items=groups[c].sort((a,b)=>(a[1].fv??0)-(b[1].fv??0)||a[1].label.localeCompare(b[1].label));
+    const parent = cur ? s : Object.assign(document.createElement('optgroup'),{label:c});
+    for (const [k,e] of items){ const o=document.createElement('option'); o.value=k; o.textContent=e.label; parent.appendChild(o); }
+    if(!cur) s.appendChild(parent);
+  }
+  s.value=[...s.options].some(o=>o.value===keep)?keep:''; }
 refreshFV();
 function runCatalog(){
   const q=$('f-q').value.trim().toLowerCase(), terr=$('f-terr').value, auth=$('f-auth').value, cur=$('f-cur').value, fv=$('f-fv').value, yr=+$('f-year').value||0,
@@ -408,7 +423,7 @@ function runCatalog(){
     if(terr&&!e.terrs.includes(terr)) return false;
     if(auth&&t.aid!==auth) return false;
     if(cur&&t.cur!==cur) return false;
-    if(fv&&String(t.fv)!==fv) return false;
+    if(fv&&t.dkey!==fv) return false;
     if(yr&&!(t.y0<=yr&&yr<=t.y1)) return false;
     if(mon&&t.ruler!==mon) return false;
     if(comp&&t.metal!==comp) return false;
