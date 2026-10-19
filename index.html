@@ -567,7 +567,7 @@ document.querySelectorAll('.go-contact').forEach(a=>a.onclick=e=>{ e.preventDefa
 window.addEventListener('hashchange',()=>{ const h=location.hash.slice(1); if(h==='about'||h==='contact') showPage(h); });
 
 /* ---------- contact form (FormSubmit relays it to the site owner's inbox) ---------- */
-const CONTACT_ENDPOINT='https://formsubmit.co/ajax/cherdman51@gmail.com';
+const CONTACT_ENDPOINT='https://formsubmit.co/ajax/d9d22de5fee0ac97fed0a6b569b0838d';
 $('cform').addEventListener('submit',async e=>{
   e.preventDefault();
   const f=e.target, st=$('c-status'), btn=$('c-send');
